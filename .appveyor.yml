@@ -44,8 +44,8 @@ install:
 build_script:
 - cd build
 - cmake -G"Visual Studio 14 2015 Win64" -DCMAKE_BUILD_TYPE=Debug -DOPENSSL_USE_STATIC_LIBS=NO ..
-- msbuild /p:Configuration=Debug ALL_BUILD.vcxproj
-- cd Debug
+- msbuild /p:Configuration=Release ALL_BUILD.vcxproj
+- cd Release
 - copy /Y C:\libraries\libbson\bin\*.dll .
 - copy /Y C:\libraries\mongoc\bin\*.dll .
 - copy /Y C:\libraries\mongo-cxx-driver\bin\*.dll .
@@ -54,9 +54,8 @@ build_script:
 - cd ..
 
 test_script:
-- 7z x Debug\astron.zip
+- 7z x Release\astron.zip
 - set PATH=%PATH%;C:\mongodb\bin
-- ctest --output-on-failure
 
 artifacts:
-- path: build\Debug\astron.zip
+- path: build\Release\astron.zip
