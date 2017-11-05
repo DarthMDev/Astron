@@ -183,7 +183,6 @@ class LogCategory
 		return out; \
 	}
 
-#ifdef ASTRON_DEBUG_MESSAGES
     // packet() provides a stream with the time and "PACKET" severity preprended to the message.
     // packet messages are only output when compiled with -DASTRON_DEBUG_MESSAGES.
     F(packet, LSEVERITY_PACKET)
@@ -193,27 +192,7 @@ class LogCategory
     // debug() provides a stream with the time and "DEBUG" severity preprended to the message.
     // trace messages are only output when compiled with -DASTRON_DEBUG_MESSAGES.
     F(debug, LSEVERITY_DEBUG)
-#else
-    // packet() provides a stream with the time and "PACKET" severity preprended to the message.
-    // packet messages are only output when compiled with -DASTRON_DEBUG_MESSAGES.
-    inline NullStream &packet()
-    {
-        return null_stream;
-    }
-    // trace() provides a stream with the time and "TRACE" severity preprended to the message.
-    // trace messages are only output when compiled with -DASTRON_DEBUG_MESSAGES.
-    inline NullStream &trace()
-    {
-        return null_stream;
-    }
-    // debug() provides a stream with the time and "DEBUG" severity preprended to the message.
-    // debug messages are only output when compiled with -DASTRON_DEBUG_MESSAGES.
-    inline NullStream &debug()
-    {
-        return null_stream;
-    }
 
-#endif
     // info() provides a stream with the time and "INFO" severity preprended to the message.
     // info messages are filtered with severity LSEVERITY_INFO.
     F(info, LSEVERITY_INFO)

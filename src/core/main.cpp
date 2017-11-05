@@ -256,13 +256,7 @@ void printHelp(ostream &s)
       "-b, --boring    Disables colored pretty printing. \n"
       "-l, --loglevel  Specify the minimum log level that should be logged;\n"
       "                  Security, Error, and Fatal will always be logged;\n"
-#ifdef ASTRON_DEBUG_MESSAGES
       "                (available): packet, trace, debug, info, warning, security\n"
-#else
-      "                (available): info, warning, security\n"
-      "                (unavailable): packet, trace, debug\n"
-      "                        [build with -DCMAKE_BUILD_TYPE=Debug]\n"
-#endif
       "\n"
       "Example:\n"
       "    astrond /tmp/my_config_file.yaml\n"
