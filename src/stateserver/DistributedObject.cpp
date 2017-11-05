@@ -45,7 +45,6 @@ DistributedObject::DistributedObject(StateServer *stateserver, doid_t do_id, doi
 
     subscribe_channel(do_id);
 
-    m_log->debug() << "Object created..." << endl;
 
     dgi.seek_payload(); // Seek back to front of payload, to read sender
     handle_location_change(parent_id, zone_id, dgi.read_channel());
@@ -310,7 +309,6 @@ void DistributedObject::annihilate(channel_t sender, bool notify_parent)
     delete_children(sender);
 
     m_stateserver->m_objs.erase(m_do_id);
-    m_log->debug() << "Deleted.\n";
 
     terminate();
 }
