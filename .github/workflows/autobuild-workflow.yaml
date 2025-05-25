@@ -85,7 +85,7 @@ jobs:
           brew install ninja bison flex autoconf automake libtool llvm && \
             for lib in bison flex; do find /usr/local/opt/$lib/bin -maxdepth 1 -type f -exec ln -s {} /usr/local/bin \;; done
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.8
+        uses: hendrikmuhs/ccache-action@v1.2.18
         with:
           key: ${{ matrix.os }}-lto2-ccache
       - name: Enable Clang
@@ -101,75 +101,75 @@ jobs:
           sudo rm -rf /Library/Frameworks/Mono.framework
       - name: Cache OpenSSL
         id: cache-openssl
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/libraries/openssl
           key: ${{ matrix.os }}-${{ matrix.build_type }}-lto2-openssl-${{ steps.query.outputs.OPENSSL_COMMIT }}
       - name: Cache zstd
         id: cache-zstd
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/libraries/zstd
           key: ${{ matrix.os }}-${{ matrix.build_type }}-lto2-zstd-${{ steps.query.outputs.ZSTD_COMMIT }}
       - name: Cache mongo-c-driver
         id: cache-mongoc
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/libraries/mongoc
           key: ${{ matrix.os }}-${{ matrix.build_type }}-lto2-mongoc-${{ steps.query.outputs.OPENSSL_COMMIT }}-${{ steps.query.outputs.ZSTD_COMMIT }}-${{ steps.query.outputs.MONGOC_COMMIT }}
       - name: Cache mongo-cxx-driver
         id: cache-mongocxx
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/libraries/mongocxx
           key: ${{ matrix.os }}-${{ matrix.build_type }}-lto2-mongocxx-${{ steps.query.outputs.OPENSSL_COMMIT }}-${{ steps.query.outputs.MONGOC_COMMIT }}-${{ steps.query.outputs.MONGOCXX_COMMIT }}
       - name: Cache libuv
         id: cache-libuv
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/libraries/libuv
           key: ${{ matrix.os }}-${{ matrix.build_type }}-lto4-libuv-${{ steps.query.outputs.LIBUV_COMMIT }}-${{ steps.query.outputs.UVW_COMMIT }}
       - name: Cache uvw
         id: cache-uvw
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/libraries/uvw
           key: ${{ matrix.os }}-${{ matrix.build_type }}-lto4-libuv-${{ steps.query.outputs.LIBUV_COMMIT }}-${{ steps.query.outputs.UVW_COMMIT }}
       - name: Cache yaml-cpp
         id: cache-yaml
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/libraries/yaml
           key: ${{ matrix.os }}-${{ matrix.build_type }}-lto2-yaml-${{ steps.query.outputs.YAML_COMMIT }}
       - name: Cache SQLite3
         id: cache-sqlite
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/libraries/sqlite
           key: ${{ matrix.os }}-${{ matrix.build_type }}-lto2-sqlite-${{ steps.query.outputs.SQLITE_HASH }}
       - name: Cache ODBC
         if: runner.os != 'Windows'
         id: cache-odbc
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/libraries/odbc
           key: ${{ matrix.os }}-${{ matrix.build_type }}-lto2-unixodbc-${{ steps.query.outputs.ODBC_HASH }}
       - name: Cache SOCI
         id: cache-soci
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/libraries/soci
           key: ${{ matrix.os }}-${{ matrix.build_type }}-lto2-soci-${{ steps.query.outputs.SQLITE_HASH }}-${{ steps.query.outputs.ODBC_HASH }}-${{ steps.query.outputs.SOCI_COMMIT }}
       - name: Cache Bison and Flex
         if: runner.os == 'Windows'
         id: cache-bison
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/libraries/bison
           key: ${{ matrix.os }}-${{ matrix.build_type }}-bison-${{ steps.query.outputs.FLEXBISON_BUILD_ID }}
       - name: Checkout libuv
         if: steps.cache-libuv.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: "libuv/libuv"
           ref: "v1.x"
@@ -198,7 +198,7 @@ jobs:
           rm -rf libuv
       - name: Checkout uvw
         if: steps.cache-uvw.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: "darktohka/uvw"
           ref: "master"
@@ -228,7 +228,7 @@ jobs:
             && rm -rf uvw
       - name: Checkout OpenSSL
         if: steps.cache-openssl.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: "openssl/openssl"
           ref: "master"
@@ -269,7 +269,7 @@ jobs:
           rm -rf openssl
       - name: Checkout zstd
         if: steps.cache-zstd.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: "facebook/zstd"
           ref: "dev"
@@ -299,7 +299,7 @@ jobs:
           rm -rf zstd
       - name: Checkout mongo-c-driver
         if: steps.cache-mongoc.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: "mongodb/mongo-c-driver"
           ref: "master"
@@ -337,7 +337,7 @@ jobs:
           rm -rf mongo-c-driver
       - name: Checkout mongo-cxx-driver
         if: steps.cache-mongocxx.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: "mongodb/mongo-cxx-driver"
           ref: "master"
@@ -373,7 +373,7 @@ jobs:
           rm -rf mongo-cxx-driver
       - name: Checkout yaml-cpp
         if: steps.cache-yaml.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: "jbeder/yaml-cpp"
           ref: "master"
@@ -482,7 +482,7 @@ jobs:
           rm -rf odbc
       - name: Checkout SOCI
         if: steps.cache-soci.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: "SOCI/soci"
           ref: "master"
@@ -529,7 +529,7 @@ jobs:
           unzip -qq *.zip && rm -f *.zip
       - name: Cache Boost
         id: cache-boost
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/libraries/boost
           key: boost
@@ -591,7 +591,7 @@ jobs:
         run: |
           rm -rf boost
       - name: Checkout Astron
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: "Astron"
       - name: Setup Astron
@@ -612,13 +612,13 @@ jobs:
           cmake --build . --parallel 2 --target install --config ${{ matrix.build_type }}
       - name: Upload Astron on Windows
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-astron
           path: ${{ github.workspace }}/build/astron/bin/astrond.exe
       - name: Upload unstripped Astron on Linux and Mac
         if: runner.os != 'Windows' && matrix.build_type == 'Release'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-astron-debug
           path: ${{ github.workspace }}/build/astron/bin/astrond
@@ -630,7 +630,7 @@ jobs:
           strip astrond
       - name: Upload Astron on Linux and Mac
         if: runner.os != 'Windows'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-${{ matrix.build_type }}-astron
           path: ${{ github.workspace }}/build/astron/bin/astrond
@@ -641,7 +641,7 @@ jobs:
           tar -acf astron-libraries.tar.zst libraries
       - name: Upload libraries
         if: matrix.build_type == 'Release'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-${{ matrix.build_type }}-libraries
           path: astron-libraries.tar.zst
