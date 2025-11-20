@@ -17,6 +17,87 @@ endif()
 ### Configure CMake to use our extra Find modules ###
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
+# macOS/Homebrew support: if Homebrew is present, add its prefix
+# and common CMake package locations to CMAKE_PREFIX_PATH so
+# find_package can locate packages like libmongocxx/libbsoncxx.
+if(APPLE)
+	execute_process(COMMAND brew --prefix
+									OUTPUT_VARIABLE ASTRON_BREW_PREFIX
+									OUTPUT_STRIP_TRAILING_WHITESPACE
+									ERROR_QUIET)
+
+	if(NOT ASTRON_BREW_PREFIX)
+		if(EXISTS "/opt/homebrew")
+			set(ASTRON_BREW_PREFIX "/opt/homebrew")
+		elseif(EXISTS "/usr/local")
+			set(ASTRON_BREW_PREFIX "/usr/local")
+		endif()
+	endif()
+
+	# Final simple fallback: if include dirs still unset, fall back to Homebrew include
+	if(APPLE AND ASTRON_BREW_PREFIX)
+		if(NOT LIBMONGOCXX_INCLUDE_DIRS OR LIBMONGOCXX_INCLUDE_DIRS STREQUAL "LIBMONGOCXX_INCLUDE_DIRS-NOTFOUND")
+			set(LIBMONGOCXX_INCLUDE_DIRS "${ASTRON_BREW_PREFIX}/include" CACHE PATH "Fallback: Homebrew include")
+		endif()
+		if(NOT LIBBSONCXX_INCLUDE_DIRS OR LIBBSONCXX_INCLUDE_DIRS STREQUAL "LIBBSONCXX_INCLUDE_DIRS-NOTFOUND")
+			set(LIBBSONCXX_INCLUDE_DIRS "${ASTRON_BREW_PREFIX}/include" CACHE PATH "Fallback: Homebrew include")
+		endif()
+	endif()
+
+	if(ASTRON_BREW_PREFIX)
+		list(APPEND CMAKE_PREFIX_PATH
+			"${ASTRON_BREW_PREFIX}"
+			"${ASTRON_BREW_PREFIX}/lib"
+			"${ASTRON_BREW_PREFIX}/lib/cmake"
+			"${ASTRON_BREW_PREFIX}/opt/mongo-c-driver/lib/cmake"
+			"${ASTRON_BREW_PREFIX}/opt/mongo-cxx-driver/lib/cmake"
+			"${ASTRON_BREW_PREFIX}/opt/mongodb-community/lib/cmake"
+		)
+		# Also add any Cellar-installed package cmake directories (wildcard)
+		file(GLOB ASTRON_BREW_CELLAR_MONGO_CMAKE_DIRS
+			"${ASTRON_BREW_PREFIX}/Cellar/mongo-c-driver/*/lib/cmake"
+			"${ASTRON_BREW_PREFIX}/Cellar/mongo-cxx-driver/*/lib/cmake"
+			"${ASTRON_BREW_PREFIX}/Cellar/mongodb-community/*/lib/cmake"
+		)
+		foreach(_p ${ASTRON_BREW_CELLAR_MONGO_CMAKE_DIRS})
+			list(APPEND CMAKE_PREFIX_PATH "${_p}")
+		endforeach()
+
+		# Also add Cellar lib directories in case the package config lives
+		# directly under the lib folder or for direct library/header resolution.
+		file(GLOB ASTRON_BREW_CELLAR_MONGO_LIB_DIRS
+			"${ASTRON_BREW_PREFIX}/Cellar/mongo-c-driver/*/lib"
+			"${ASTRON_BREW_PREFIX}/Cellar/mongo-cxx-driver/*/lib"
+			"${ASTRON_BREW_PREFIX}/Cellar/mongodb-community/*/lib"
+		)
+		foreach(_p ${ASTRON_BREW_CELLAR_MONGO_LIB_DIRS})
+			list(APPEND CMAKE_PREFIX_PATH "${_p}")
+		endforeach()
+
+		# If the user didn't explicitly set libmongocxx_DIR/libbsoncxx_DIR,
+		# try to auto-detect the Homebrew Cellar cmake directories and set them
+		# so subsequent find_package calls can locate the drivers.
+		if(NOT libmongocxx_DIR)
+						file(GLOB _ASTRON_BREW_MONGO_CMAKE_DIRS "${ASTRON_BREW_PREFIX}/Cellar/mongo-cxx-driver/*/lib/cmake/mongocxx*")
+						if(_ASTRON_BREW_MONGO_CMAKE_DIRS)
+							list(GET _ASTRON_BREW_MONGO_CMAKE_DIRS 0 _ASTRON_FIRST_MONGO_DIR)
+						endif()
+						if(_ASTRON_FIRST_MONGO_DIR)
+				set(libmongocxx_DIR "${_ASTRON_FIRST_MONGO_DIR}" CACHE PATH "Auto-detected libmongocxx CMake dir from Homebrew")
+			endif()
+		endif()
+		if(NOT libbsoncxx_DIR)
+						file(GLOB _ASTRON_BREW_BSON_CMAKE_DIRS "${ASTRON_BREW_PREFIX}/Cellar/mongo-cxx-driver/*/lib/cmake/bsoncxx*")
+						if(_ASTRON_BREW_BSON_CMAKE_DIRS)
+							list(GET _ASTRON_BREW_BSON_CMAKE_DIRS 0 _ASTRON_FIRST_BSON_DIR)
+						endif()
+						if(_ASTRON_FIRST_BSON_DIR)
+				set(libbsoncxx_DIR "${_ASTRON_FIRST_BSON_DIR}" CACHE PATH "Auto-detected libbsoncxx CMake dir from Homebrew")
+			endif()
+		endif()
+	endif()
+endif()
+
 
 ### Define extra windows defines ###
 if(WIN32)
@@ -187,6 +268,87 @@ if(BUILD_DBSERVER)
 	find_package(libbsoncxx QUIET)
 	find_package(libmongocxx-static QUIET)
 	find_package(libbsoncxx-static QUIET)
+
+	# Also try CONFIG-style package names (common for mongo C++ driver installs)
+	find_package(mongocxx CONFIG QUIET)
+	find_package(bsoncxx CONFIG QUIET)
+
+	# If the above config-style find_package calls didn't locate packages,
+	# try a simple manual lookup on macOS/Homebrew by looking for headers
+	# and libraries in known Homebrew locations.
+	if(NOT LIBMONGOCXX_LIBRARIES AND NOT LIBMONGOCXX_STATIC_LIBRARIES)
+		if(APPLE)
+			# Look for headers
+			find_path(LIBMONGOCXX_INCLUDE_DIRS
+				NAMES mongocxx/instance.hpp
+				HINTS "${ASTRON_BREW_PREFIX}/include" "${ASTRON_BREW_PREFIX}/opt/mongo-cxx-driver/include")
+			find_path(LIBBSONCXX_INCLUDE_DIRS
+				NAMES bsoncxx/json.hpp
+				HINTS "${ASTRON_BREW_PREFIX}/include" "${ASTRON_BREW_PREFIX}/opt/mongo-c-driver/include")
+
+			# Look for libraries (try several common library name variants)
+			find_library(LIBMONGOCXX_LIBRARIES
+				NAMES mongocxx libmongocxx mongocxx_shared
+				HINTS "${ASTRON_BREW_PREFIX}/lib" "${ASTRON_BREW_PREFIX}/opt/mongo-cxx-driver/lib")
+			find_library(LIBBSONCXX_LIBRARIES
+				NAMES bsoncxx libbsoncxx bsoncxx_shared
+				HINTS "${ASTRON_BREW_PREFIX}/lib" "${ASTRON_BREW_PREFIX}/opt/mongo-c-driver/lib")
+
+			# If we found libraries, also set the library directories for later linking
+			if(LIBMONGOCXX_LIBRARIES)
+				get_filename_component(LIBMONGOCXX_LIBRARY_DIRS ${LIBMONGOCXX_LIBRARIES} DIRECTORY)
+			endif()
+			if(LIBBSONCXX_LIBRARIES)
+				get_filename_component(LIBBSONCXX_LIBRARY_DIRS ${LIBBSONCXX_LIBRARIES} DIRECTORY)
+			endif()
+		endif()
+
+			# If include dirs weren't found by find_path, try Cellar include locations
+			if(NOT LIBMONGOCXX_INCLUDE_DIRS OR LIBMONGOCXX_INCLUDE_DIRS STREQUAL "LIBMONGOCXX_INCLUDE_DIRS-NOTFOUND")
+				file(GLOB _ASTRON_BREW_MONGO_INC_DIRS "${ASTRON_BREW_PREFIX}/Cellar/mongo-cxx-driver/*/include")
+				list(GET _ASTRON_BREW_MONGO_INC_DIRS 0 _ASTRON_FIRST_MONGO_INC)
+				if(_ASTRON_FIRST_MONGO_INC)
+					set(LIBMONGOCXX_INCLUDE_DIRS "${_ASTRON_FIRST_MONGO_INC}" CACHE PATH "Auto-detected libmongocxx include dir from Homebrew")
+					message(STATUS "Auto-set LIBMONGOCXX_INCLUDE_DIRS=${LIBMONGOCXX_INCLUDE_DIRS}")
+				endif()
+			endif()
+			if(NOT LIBBSONCXX_INCLUDE_DIRS OR LIBBSONCXX_INCLUDE_DIRS STREQUAL "LIBBSONCXX_INCLUDE_DIRS-NOTFOUND")
+				file(GLOB _ASTRON_BREW_BSON_INC_DIRS "${ASTRON_BREW_PREFIX}/Cellar/mongo-cxx-driver/*/include")
+				list(GET _ASTRON_BREW_BSON_INC_DIRS 0 _ASTRON_FIRST_BSON_INC)
+				if(_ASTRON_FIRST_BSON_INC)
+					set(LIBBSONCXX_INCLUDE_DIRS "${_ASTRON_FIRST_BSON_INC}" CACHE PATH "Auto-detected libbsoncxx include dir from Homebrew")
+					message(STATUS "Auto-set LIBBSONCXX_INCLUDE_DIRS=${LIBBSONCXX_INCLUDE_DIRS}")
+				endif()
+			endif()
+
+			# If libraries weren't found, try to pick them from the Cellar lib dirs
+			if(NOT LIBMONGOCXX_LIBRARIES)
+				file(GLOB _ASTRON_BREW_MONGO_LIB_DIRS "${ASTRON_BREW_PREFIX}/Cellar/mongo-cxx-driver/*/lib")
+				list(GET _ASTRON_BREW_MONGO_LIB_DIRS 0 _ASTRON_FIRST_MONGO_LIBDIR)
+				if(_ASTRON_FIRST_MONGO_LIBDIR)
+					file(GLOB _ASTRON_MONGO_LIBFILES "${_ASTRON_FIRST_MONGO_LIBDIR}/libmongocxx*.dylib" )
+					list(GET _ASTRON_MONGO_LIBFILES 0 _ASTRON_FIRST_MONGO_LIBFILE)
+					if(_ASTRON_FIRST_MONGO_LIBFILE)
+						set(LIBMONGOCXX_LIBRARIES "${_ASTRON_FIRST_MONGO_LIBFILE}")
+						set(LIBMONGOCXX_LIBRARY_DIRS "${_ASTRON_FIRST_MONGO_LIBDIR}")
+						message(STATUS "Auto-set LIBMONGOCXX_LIBRARIES=${LIBMONGOCXX_LIBRARIES}")
+					endif()
+				endif()
+			endif()
+			if(NOT LIBBSONCXX_LIBRARIES)
+				file(GLOB _ASTRON_BREW_BSON_LIB_DIRS "${ASTRON_BREW_PREFIX}/Cellar/mongo-cxx-driver/*/lib" "${ASTRON_BREW_PREFIX}/Cellar/mongo-c-driver/*/lib")
+				list(GET _ASTRON_BREW_BSON_LIB_DIRS 0 _ASTRON_FIRST_BSON_LIBDIR)
+				if(_ASTRON_FIRST_BSON_LIBDIR)
+					file(GLOB _ASTRON_BSON_LIBFILES "${_ASTRON_FIRST_BSON_LIBDIR}/libbsoncxx*.dylib")
+					list(GET _ASTRON_BSON_LIBFILES 0 _ASTRON_FIRST_BSON_LIBFILE)
+					if(_ASTRON_FIRST_BSON_LIBFILE)
+						set(LIBBSONCXX_LIBRARIES "${_ASTRON_FIRST_BSON_LIBFILE}")
+						set(LIBBSONCXX_LIBRARY_DIRS "${_ASTRON_FIRST_BSON_LIBDIR}")
+						message(STATUS "Auto-set LIBBSONCXX_LIBRARIES=${LIBBSONCXX_LIBRARIES}")
+					endif()
+				endif()
+			endif()
+	endif()
 
 	if(LIBMONGOCXX_LIBRARIES OR LIBMONGOCXX_STATIC_LIBRARIES)
 		set(BUILD_DB_MONGO ON CACHE BOOL "If on, will support MongoDB.")
