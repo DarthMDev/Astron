@@ -14,6 +14,36 @@ if(PYTHONINTERP_FOUND)
 	endif()
 endif()
 
+	# If Homebrew is present, also append the mongo-cxx v_noabi include folders
+	# directly to the global include path so compiler invocations always see
+	# the `bsoncxx/...` and `mongocxx/...` headers even when cached variables
+	# point at a different top-level include.
+	if(APPLE AND ASTRON_BREW_PREFIX)
+		file(GLOB _ASTRON_CELLAR_MONGO_INCLUDES "${ASTRON_BREW_PREFIX}/Cellar/mongo-cxx-driver/*/include")
+		if(_ASTRON_CELLAR_MONGO_INCLUDES)
+			list(GET _ASTRON_CELLAR_MONGO_INCLUDES 0 _ASTRON_FIRST_CELLAR_INC)
+			if(EXISTS "${_ASTRON_FIRST_CELLAR_INC}/bsoncxx/v_noabi")
+				include_directories("${_ASTRON_FIRST_CELLAR_INC}/bsoncxx/v_noabi")
+				message(STATUS "Added bsoncxx v_noabi include: ${_ASTRON_FIRST_CELLAR_INC}/bsoncxx/v_noabi")
+			endif()
+			if(EXISTS "${_ASTRON_FIRST_CELLAR_INC}/mongocxx/v_noabi")
+				include_directories("${_ASTRON_FIRST_CELLAR_INC}/mongocxx/v_noabi")
+				message(STATUS "Added mongocxx v_noabi include: ${_ASTRON_FIRST_CELLAR_INC}/mongocxx/v_noabi")
+			endif()
+			# Also add the cellar include root as a fallback
+			if(EXISTS "${_ASTRON_FIRST_CELLAR_INC}")
+				include_directories("${_ASTRON_FIRST_CELLAR_INC}")
+				message(STATUS "Added Homebrew mongo include root: ${_ASTRON_FIRST_CELLAR_INC}")
+			endif()
+		else()
+			# Fallback to Homebrew top-level include
+			if(EXISTS "${ASTRON_BREW_PREFIX}/include")
+				include_directories("${ASTRON_BREW_PREFIX}/include")
+				message(STATUS "Added Homebrew include: ${ASTRON_BREW_PREFIX}/include")
+			endif()
+		endif()
+	endif()
+
 ### Configure CMake to use our extra Find modules ###
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
@@ -36,11 +66,42 @@ if(APPLE)
 
 	# Final simple fallback: if include dirs still unset, fall back to Homebrew include
 	if(APPLE AND ASTRON_BREW_PREFIX)
-		if(NOT LIBMONGOCXX_INCLUDE_DIRS OR LIBMONGOCXX_INCLUDE_DIRS STREQUAL "LIBMONGOCXX_INCLUDE_DIRS-NOTFOUND")
-			set(LIBMONGOCXX_INCLUDE_DIRS "${ASTRON_BREW_PREFIX}/include" CACHE PATH "Fallback: Homebrew include")
-		endif()
-		if(NOT LIBBSONCXX_INCLUDE_DIRS OR LIBBSONCXX_INCLUDE_DIRS STREQUAL "LIBBSONCXX_INCLUDE_DIRS-NOTFOUND")
-			set(LIBBSONCXX_INCLUDE_DIRS "${ASTRON_BREW_PREFIX}/include" CACHE PATH "Fallback: Homebrew include")
+		if(NOT LIBMONGOCXX_INCLUDE_DIRS OR LIBMONGOCXX_INCLUDE_DIRS STREQUAL "LIBMONGOCXX_INCLUDE_DIRS-NOTFOUND" OR NOT LIBBSONCXX_INCLUDE_DIRS OR LIBBSONCXX_INCLUDE_DIRS STREQUAL "LIBBSONCXX_INCLUDE_DIRS-NOTFOUND")
+			# Try to auto-detect the Cellar include directory for mongo-cxx-driver
+			file(GLOB _ASTRON_CELLAR_MONGO_INCLUDES "${ASTRON_BREW_PREFIX}/Cellar/mongo-cxx-driver/*/include")
+			if(_ASTRON_CELLAR_MONGO_INCLUDES)
+				list(GET _ASTRON_CELLAR_MONGO_INCLUDES 0 _ASTRON_FIRST_CELLAR_INC)
+				# Preferred v_noabi layout
+				if(EXISTS "${_ASTRON_FIRST_CELLAR_INC}/bsoncxx/v_noabi")
+					if(NOT LIBBSONCXX_INCLUDE_DIRS OR LIBBSONCXX_INCLUDE_DIRS STREQUAL "LIBBSONCXX_INCLUDE_DIRS-NOTFOUND")
+						set(LIBBSONCXX_INCLUDE_DIRS "${_ASTRON_FIRST_CELLAR_INC}/bsoncxx/v_noabi" CACHE PATH "Auto-detected bsoncxx v_noabi include")
+					endif()
+				endif()
+				if(EXISTS "${_ASTRON_FIRST_CELLAR_INC}/mongocxx/v_noabi")
+					if(NOT LIBMONGOCXX_INCLUDE_DIRS OR LIBMONGOCXX_INCLUDE_DIRS STREQUAL "LIBMONGOCXX_INCLUDE_DIRS-NOTFOUND")
+						set(LIBMONGOCXX_INCLUDE_DIRS "${_ASTRON_FIRST_CELLAR_INC}/mongocxx/v_noabi" CACHE PATH "Auto-detected mongocxx v_noabi include")
+					endif()
+				endif()
+				# If v_noabi not present, fall back to top-level include within cellar
+				if(NOT LIBBSONCXX_INCLUDE_DIRS OR LIBBSONCXX_INCLUDE_DIRS STREQUAL "LIBBSONCXX_INCLUDE_DIRS-NOTFOUND")
+					if(EXISTS "${_ASTRON_FIRST_CELLAR_INC}/bsoncxx")
+						set(LIBBSONCXX_INCLUDE_DIRS "${_ASTRON_FIRST_CELLAR_INC}/bsoncxx" CACHE PATH "Auto-detected bsoncxx include")
+					endif()
+				endif()
+				if(NOT LIBMONGOCXX_INCLUDE_DIRS OR LIBMONGOCXX_INCLUDE_DIRS STREQUAL "LIBMONGOCXX_INCLUDE_DIRS-NOTFOUND")
+					if(EXISTS "${_ASTRON_FIRST_CELLAR_INC}/mongocxx")
+						set(LIBMONGOCXX_INCLUDE_DIRS "${_ASTRON_FIRST_CELLAR_INC}/mongocxx" CACHE PATH "Auto-detected mongocxx include")
+					endif()
+				endif()
+			else()
+				# Last-resort: use Homebrew top-level include prefix
+				if(NOT LIBMONGOCXX_INCLUDE_DIRS OR LIBMONGOCXX_INCLUDE_DIRS STREQUAL "LIBMONGOCXX_INCLUDE_DIRS-NOTFOUND")
+					set(LIBMONGOCXX_INCLUDE_DIRS "${ASTRON_BREW_PREFIX}/include" CACHE PATH "Fallback: Homebrew include")
+				endif()
+				if(NOT LIBBSONCXX_INCLUDE_DIRS OR LIBBSONCXX_INCLUDE_DIRS STREQUAL "LIBBSONCXX_INCLUDE_DIRS-NOTFOUND")
+					set(LIBBSONCXX_INCLUDE_DIRS "${ASTRON_BREW_PREFIX}/include" CACHE PATH "Fallback: Homebrew include")
+				endif()
+			endif()
 		endif()
 	endif()
 
@@ -205,6 +266,15 @@ include_directories(${UVW_INCLUDE_DIR})
 link_directories(${UVW_LIBRARY_DIR})
 message(STATUS "Found the uvw library:")
 message("	${UVW_LIBRARY}\n")
+
+# If we found uvw as a library installation, prefer using the library
+# implementation rather than header-only inlining which expects emitter.cpp
+# to be present next to headers. Define UVW_AS_LIB so headers skip including
+# emitter.cpp and we link against the installed libuvw.
+if(DEFINED UVW_LIBRARY)
+	add_definitions(-DUVW_AS_LIB)
+	message(STATUS "Defining UVW_AS_LIB to use installed libuvw")
+endif()
 
 # We only really need this for Boost's ICL at this point, but until it's fully deprecated:
 find_package(Boost REQUIRED)
@@ -647,6 +717,30 @@ add_executable(astrond
 	${TEST_FILES}
 	${DBSERVER_FILES}
 )
+
+# Ensure the main target has the mongo-cxx include directories attached directly.
+# This is a more robust way to guarantee compilation units see the v_noabi headers
+# even if global include_directories didn't propagate for some reason.
+if(APPLE AND ASTRON_BREW_PREFIX)
+	file(GLOB _ASTRON_CELLAR_MONGO_INCLUDES "${ASTRON_BREW_PREFIX}/Cellar/mongo-cxx-driver/*/include")
+	if(_ASTRON_CELLAR_MONGO_INCLUDES)
+		list(GET _ASTRON_CELLAR_MONGO_INCLUDES 0 _ASTRON_FIRST_CELLAR_INC)
+		set(_ASTRON_MONGO_INCLUDES_TO_ADD "")
+		if(EXISTS "${_ASTRON_FIRST_CELLAR_INC}/bsoncxx/v_noabi")
+			list(APPEND _ASTRON_MONGO_INCLUDES_TO_ADD "${_ASTRON_FIRST_CELLAR_INC}/bsoncxx/v_noabi")
+		endif()
+		if(EXISTS "${_ASTRON_FIRST_CELLAR_INC}/mongocxx/v_noabi")
+			list(APPEND _ASTRON_MONGO_INCLUDES_TO_ADD "${_ASTRON_FIRST_CELLAR_INC}/mongocxx/v_noabi")
+		endif()
+		if(EXISTS "${_ASTRON_FIRST_CELLAR_INC}")
+			list(APPEND _ASTRON_MONGO_INCLUDES_TO_ADD "${_ASTRON_FIRST_CELLAR_INC}")
+		endif()
+		if(_ASTRON_MONGO_INCLUDES_TO_ADD)
+			target_include_directories(astrond PRIVATE ${_ASTRON_MONGO_INCLUDES_TO_ADD})
+			message(STATUS "Attached mongo-cxx include dirs to target 'astrond': ${_ASTRON_MONGO_INCLUDES_TO_ADD}")
+		endif()
+	endif()
+endif()
 
 ### Setup source groups and defines for configurables ###
 source_group("Core" FILES ${CORE_FILES})
