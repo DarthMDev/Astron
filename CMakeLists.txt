@@ -75,7 +75,9 @@ endif()
 # Common flags:
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR
    CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-error=deprecated-declarations")
+	# macOS port: modern clang flags older idioms (unqualified std::move, etc.) as errors
+	# under -Werror; demote those to warnings so this older codebase builds. # -- macOS port
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-error=deprecated-declarations -Wno-error=unqualified-std-cast-call -Wno-error=deprecated-copy -Wno-error=deprecated-enum-enum-conversion")
 endif()
 
 # Clang-specific flags:
